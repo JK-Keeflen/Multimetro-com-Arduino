@@ -1,7 +1,9 @@
+
 /* 
     Data: 16/07/2025 23h10
     by JK
 */
+
 #include <Wire.h>
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
@@ -11,9 +13,12 @@
 #include <SoftwareSerial.h>
 #include <DFMiniMp3.h>
 
-#define SCREEN_WIDTH 128 // OLED display width, in pixels
-#define SCREEN_HEIGHT 64 // OLED display height, in pixels
-#define BLUE 0x001F //color
+// Definições do display OLED
+#define SCREEN_WIDTH 128
+#define SCREEN_HEIGHT 64
+
+// Cria objeto display (I2C) - ajuste o reset para -1 se não usar
+Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, -1);
 
 // Pinos para conexão do DFPlayer
 static const uint8_t DFPlayer_RX = 10; 
@@ -30,12 +35,11 @@ class Mp3Notify {
 };
 
 DFMiniMp3<SoftwareSerial, Mp3Notify> mp3(mySoftwareSerial);
-DFRobotDFPlayerMini myDFPlayer;          // Create a DFPlayerMini object
-
+// [Removido o DFRobotDFPlayerMini myDFPlayer; pois não estava em uso]
 // =========== [ FIM DAS ADIÇÕES PARA DFPLAYER ] ===========
 
 
-// Seus pinos e variáveis originais:
+// Pinos e variáveis originais
 int botao_Tensao   = 3;
 int botao_Corrente = 4;
 int continuarT = 0;
@@ -48,7 +52,9 @@ unsigned long ultimoTempoBotaoTensao   = 0;
 unsigned long ultimoTempoBotaoCorrente = 0;
 const unsigned long debounceDelay = 200;
 
-
+// -----------------------------------------------------
+// setup()
+// -----------------------------------------------------
 void setup() {
   Serial.begin(9600);
 
@@ -59,12 +65,17 @@ void setup() {
   Serial.println("_______________");
   Serial.println("JoKenPRo+");
 
-  // Inicialização do DFPlayer
+  // Inicializa o display OLED
   display.begin(SSD1306_SWITCHCAPVCC, 0x3C);
-  delay(2000);
+  delay(1000);
   display.clearDisplay();
+  display.setTextSize(1);
   display.setTextColor(SSD1306_WHITE);
+  display.setCursor(0,0);
+  display.println("JoKenPRo+ Iniciado");
+  display.display();
 
+  // Inicialização do DFPlayer
   mySoftwareSerial.begin(9600); 
   mp3.begin();
   delay(1000);
@@ -72,13 +83,12 @@ void setup() {
   Serial.println("DFPlayer Mini pronto para uso...");
 }
 
-
 // -----------------------------------------------------
 // Função para medir a tensão no pino A0
 // -----------------------------------------------------
 float medidor_de_tensao() {
   int leituraAnalogica = analogRead(A0);  
-  // Ajuste aqui a fórmula de acordo com seu circuito (divisor de tensão, etc.)
+  // Ajuste a fórmula conforme seu divisor de tensão (se houver)
   float tensao_real = (leituraAnalogica * 5.0 * 5.0) / 1024.0; 
   delay(450);  
   return tensao_real;
@@ -89,7 +99,6 @@ float medidor_de_tensao() {
 // -----------------------------------------------------
 float medidor_de_corrente_filtrado(int numAmostras = 50) {
   float soma = 0.0;
-
   for (int i = 0; i < numAmostras; i++) {
     int leituraAnalogica = analogRead(A0);
     float tensao_sensor  = (leituraAnalogica * 5.0) / 1024.0;
@@ -97,97 +106,129 @@ float medidor_de_corrente_filtrado(int numAmostras = 50) {
     soma += corrente;
     delay(10);
   }
-
   float correnteFiltrada = soma / numAmostras;
   return correnteFiltrada;
 }
 
-
-void separarPartes(float valor, int& parteInteira, int& parteDecimal) {
-  double parteDecimalF;
-  // modf separa o valor em parte inteira e parte decimal
-  parteDecimalF = modf(valor, &parteInteira);
-
-  // Multiplica a parte decimal por 100 para obter dois dígitos (ex.: 0.84 -> 84)
-  parteDecimal = abs(static_cast<int>(parteDecimalF * 100)); 
-}
-
-// Função para tocar arquivos MP3 com base nos valores separados
-void tocarPorValor(float valor) {
-  int parteInteira, parteDecimal;
-
-  // Separa as partes
-  separarPartes(valor, parteInteira, parteDecimal);
-
-  // Converte as partes em números de faixa para o DFPlayer
-  int faixaInteira = parteInteira;         // ex.: 9 -> 9
-  int faixaDecimal = parteDecimal + 100;  // ex.: 84 -> 184 (supondo 0084.mp3 é faixa 184)
-
-  // Toca a parte inteira
-  if (faixaInteira > 0) {
-    mp3.playMp3FolderTrack(faixaInteira);
-  }
-
-  mp3.playMp3FolderTrack(9999);
-
-  // Aguarda um pouco antes de tocar a parte decimal
-  delay(1000);
-
-  // Toca a parte decimal
-  if (faixaDecimal > 100) {
-    mp3.playMp3FolderTrack(faixaDecimal);
-  }
-}
 // -----------------------------------------------------
-// Exibir Corrente no Serial e TOCAR MP3 DIFERENTE
-// conforme o valor da corrente
+// Falar número inteiro de 0..99 (com "menos" se negativo)
+// Pré-requisitos de áudio no SD:
+//   0..9, 10..19, 20..90 (passo de 10), 98="e", 9998="menos"
+// -----------------------------------------------------
+void falarNumero(int num) {
+  // Se for negativo, fala "menos" e torna positivo
+  if (num < 0) {
+    mp3.playMp3FolderTrack(9998); // "menos"
+    num = -num;
+  }
+
+  if (num < 10) {
+    // 0..9 -> faixa = num
+    mp3.playMp3FolderTrack(num);
+  }
+  else if (num < 20) {
+    // 10..19 -> faixa = num
+    mp3.playMp3FolderTrack(num);
+  }
+  else {
+    // 20..99
+    int dezena = (num / 10) * 10; // ex.: 26 -> 20
+    int unidade = num % 10;      // ex.: 26 -> 6
+
+    // Toca a dezena (20,30,40..)
+    mp3.playMp3FolderTrack(dezena);
+
+    // Se a unidade não for zero, toca "e" + unidade
+    if (unidade != 0) {
+      mp3.playMp3FolderTrack(98);    // "e"
+      mp3.playMp3FolderTrack(unidade);
+    }
+  }
+}
+
+// -----------------------------------------------------
+// Falar valor float (ex.: 9.84 => "nove ponto oitenta e quatro")
+// Pré-requisitos de áudio no SD:
+//   99 = "ponto"
+// -----------------------------------------------------
+void falarValorFloat(float valor) {
+  // Separa parte inteira e fracionária
+  int parteInteira;
+  double parteDecimalF = modf(valor, &parteInteira); 
+  int parteDecimal = abs(static_cast<int>(parteDecimalF * 100));
+  
+  // Fala a parte inteira
+  falarNumero(parteInteira);
+
+  // Se decimal != 0, fala "ponto" e depois a parte decimal
+  if (parteDecimal != 0) {
+    mp3.playMp3FolderTrack(99);    // "ponto"
+    falarNumero(parteDecimal);
+  }
+}
+
+// -----------------------------------------------------
+// Função tocarPorValor() - se quiser somente falar
+// o float de forma 9.84 => "nove ponto oitenta e quatro"
+// -----------------------------------------------------
+void tocarPorValor(float valor) {
+  // Se você não precisar de lógicas adicionais, pode chamar direto:
+  falarValorFloat(valor);
+}
+
+// -----------------------------------------------------
+// Exibir Corrente no Serial e também falar o valor
 // -----------------------------------------------------
 void exibir_Corrente_PTBR() {
   float valor_corrente = medidor_de_corrente_filtrado(50);
   Serial.print("Corrente: ");
   Serial.print(valor_corrente, 2);
   Serial.println(" A");
+
+  display.clearDisplay();
+  display.setCursor(0,0);
+  display.println("Corrente (A):");
+  display.println(valor_corrente, 2);
+  display.display();
+
+  // Fala o valor (ex.: "cinco ponto trinta e dois")
   tocarPorValor(valor_corrente);
-
-  // Exemplo de lógica:
-  //   Se corrente < 1 A  -> toca 0003.mp3
-  //   Se corrente < 3 A  -> toca 0004.mp3
-  //   Caso contrário     -> toca 0005.mp3
-  //
-  // Ajuste as faixas conforme a sua necessidade
-
+}
 
 // -----------------------------------------------------
-// Exibir Tensão no Serial e TOCAR MP3 DIFERENTE
-// conforme o valor da tensão
+// Exibir Tensão no Serial e também falar o valor
 // -----------------------------------------------------
 void exibir_Tensao_PTBR() {
   float valor_tensao = medidor_de_tensao();
   Serial.print("Tensão: ");
   Serial.print(valor_tensao, 2);
   Serial.println(" V");
+
+  display.clearDisplay();
+  display.setCursor(0,0);
+  display.println("Tensao (V):");
+  display.println(valor_tensao, 2);
+  display.display();
+
+  // Fala o valor (ex.: "nove ponto oitenta e quatro")
   tocarPorValor(valor_tensao);
+}
 
-  // Exemplo de lógica:
-  //   Se tensao < 3 V  -> toca 0001.mp3
-  //   Se tensao < 6 V  -> toca 0002.mp3
-  //   Caso contrário   -> toca 0006.mp3
-  //
-  // Ajuste as faixas conforme a sua necessidade
-
-
-
-
+// -----------------------------------------------------
+// loop()
+// -----------------------------------------------------
 void loop() {
   estadoBotaoTensao   = digitalRead(botao_Tensao);
   estadoBotaoCorrente = digitalRead(botao_Corrente);
 
+  // Botão Tensao
   if (estadoBotaoTensao == LOW && millis() - ultimoTempoBotaoTensao > debounceDelay) {
     ultimoTempoBotaoTensao = millis();
     continuarT = 1;
     continuarC = 0;
   }
 
+  // Botão Corrente
   if (estadoBotaoCorrente == LOW && millis() - ultimoTempoBotaoCorrente > debounceDelay) {
     ultimoTempoBotaoCorrente = millis();
     continuarC = 1;
@@ -196,17 +237,20 @@ void loop() {
   
   if (continuarT == 1) {
     exibir_Tensao_PTBR();
+    continuarT = 0; // opcional se quiser exibir apenas uma vez
   }
 
   if (continuarC == 1) {
     exibir_Corrente_PTBR();
+    continuarC = 0; // opcional se quiser exibir apenas uma vez
   }
 
+  // Se nenhum dos dois está ativo, só aguarda
   if ((continuarT == 0) && (continuarC == 0)) {
     delay(500);
   }
 
-  // Se quiser gerenciar eventos do DFPlayer:
+  // Se quiser gerenciar eventos do DFPlayer (não é obrigatório):
   // mp3.loop();
 }
 
