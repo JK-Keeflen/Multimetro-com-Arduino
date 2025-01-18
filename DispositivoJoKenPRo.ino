@@ -1,5 +1,5 @@
 /* 
-    Data: 16/07/2025 23h10
+    Data: 18/01/2025 16h07
     by JK
 */
 
@@ -28,6 +28,7 @@ void setup() {
   Serial.begin(9600); // Inicializa o monitor serial
   
   pinMode(A0, INPUT);             // Configura o pino analógico como entrada
+  pinMode(A2, INPUT);
   pinMode(botao_Tensao, INPUT_PULLUP);
   pinMode(botao_Corrente, INPUT_PULLUP);
 
@@ -48,7 +49,7 @@ float medidor_de_corrente_filtrado(int numAmostras = 50) {
   float soma = 0.0;
 
   for (int i = 0; i < numAmostras; i++) {
-    int leituraAnalogica = analogRead(A0);  // Leitura do pino A0
+    int leituraAnalogica = analogRead(A2);  // Leitura do pino A2
     float tensao_sensor = (leituraAnalogica * 5.0) / 1024.0;  // Conversão para tensão
     float corrente = (tensao_sensor - 2.5) / 0.185;  // Cálculo da corrente
     soma += corrente;  // Soma os valores lidos
