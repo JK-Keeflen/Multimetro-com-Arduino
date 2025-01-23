@@ -1,5 +1,5 @@
 /* 
-    Data: 18/01/2025 16h07
+    Data: 22/01/2025 22h37
     by JK
 */
 
@@ -19,16 +19,12 @@ int continuarC = 0;
 int estadoBotaoTensao;
 int estadoBotaoCorrente;
 
-// Debouncing dos botões
-unsigned long ultimoTempoBotaoTensao = 0;
-unsigned long ultimoTempoBotaoCorrente = 0;
-const unsigned long debounceDelay = 200;
 
 void setup() {
   Serial.begin(9600); // Inicializa o monitor serial
   
-  pinMode(A0, INPUT);             // Configura o pino analógico como entrada
-  pinMode(A2, INPUT);
+  pinMode(A0, INPUT);             // Configura o pino analógico como entrada do sensor de tensão
+  pinMode(A2, INPUT);            // Configura o pino analógico como entrada do sensor de corrente
   pinMode(botao_Tensao, INPUT_PULLUP);
   pinMode(botao_Corrente, INPUT_PULLUP);
 
@@ -57,6 +53,7 @@ float medidor_de_corrente_filtrado(int numAmostras = 50) {
   }
 
   float correnteFiltrada = soma / numAmostras;  // Calcula a média das leituras
+  
   return correnteFiltrada;
 }
 
@@ -80,17 +77,28 @@ void loop() {
   estadoBotaoTensao = digitalRead(botao_Tensao);      // Ler o pino digital do botão
   estadoBotaoCorrente = digitalRead(botao_Corrente);  // Ler o pino digital do botão
 
-  if (estadoBotaoTensao == LOW && millis() - ultimoTempoBotaoTensao > debounceDelay) {
-    ultimoTempoBotaoTensao = millis();
-    continuarT = 1;  // Ativa a medição de tensão
+  if (estadoBotaoTensao == LOW) {
+    
     continuarC = 0;  // Desativa a medição de corrente
-  }
+    
+    if (continuarT < 2){
+      continuarT = continuarT + 1;
+    }else {
+      continuarT = 0;
+    }
+    
+  }//FIM de um IF
 
-  if (estadoBotaoCorrente == LOW && millis() - ultimoTempoBotaoCorrente > debounceDelay) {
-    ultimoTempoBotaoCorrente = millis();
-    continuarC = 1;  // Ativa a medição de corrente
+  if (estadoBotaoCorrente == LOW) {
+    
     continuarT = 0;  // Desativa a medição de tensão
-  }
+
+    if (continuarC < 2){
+      continuarC = continuarC + 1;
+    }else {
+      continuarC = 0;
+    }
+  }//FIM de um IF
   
   if (continuarT == 1) {
     exibir_Tensao_PTBR();      // Chama a função para exibir o valor da tensão
