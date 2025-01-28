@@ -1,16 +1,8 @@
 /* 
-    Data: 22/01/2025 22h37
+    Data: 25/01/2025 20h05
     by JK
 */
 
-
-
-
-/* #include <Wire.h>
-#include <Adafruit_GFX.h>
-#include <Adafruit_SSD1306.h> */
-
-// Adafruit_SSD1306 display = Adafruit_SSD1306();
 
 int botao_Tensao = 3;          // Pino do botão conectado no pin digital
 int botao_Corrente = 4;
@@ -23,8 +15,8 @@ int estadoBotaoCorrente;
 void setup() {
   Serial.begin(9600); // Inicializa o monitor serial
   
-  pinMode(A0, INPUT);             // Configura o pino analógico como entrada do sensor de tensão
-  pinMode(A2, INPUT);            // Configura o pino analógico como entrada do sensor de corrente
+  pinMode(A0, INPUT);             // Configura o pino analógico como entrada
+  pinMode(A2, INPUT);
   pinMode(botao_Tensao, INPUT_PULLUP);
   pinMode(botao_Corrente, INPUT_PULLUP);
 
@@ -40,29 +32,27 @@ float medidor_de_tensao() {
   return tensao_real;
 }
 
-// Função para medir a corrente com filtragem
-float medidor_de_corrente_filtrado(int numAmostras = 50) {
-  float soma = 0.0;
+float medidor_de_corrente(){
+    int leituraAnalogica = 0;
+    float tensao_sensor = 0.0;
+    float corrente = 0;
+    
+    leituraAnalogica = analogRead(A2);  // Leitura do pino A2 
+    tensao_sensor = (leituraAnalogica * 5 ) / 1024.0;  // Conversão para tensão     
+    //Serial.println(tensao_sensor);
+    corrente = abs((tensao_sensor - 2.50) / 0.185);  // Cálculo da corrente | o "abs" é para o valor ser sempre positivo
 
-  for (int i = 0; i < numAmostras; i++) {
-    int leituraAnalogica = analogRead(A2);  // Leitura do pino A2
-    float tensao_sensor = (leituraAnalogica * 5.0) / 1024.0;  // Conversão para tensão
-    float corrente = (tensao_sensor - 2.5) / 0.185;  // Cálculo da corrente
-    soma += corrente;  // Soma os valores lidos
-    delay(10);  // Pequeno atraso para evitar leituras rápidas demais
-  }
-
-  float correnteFiltrada = soma / numAmostras;  // Calcula a média das leituras
-  
-  return correnteFiltrada;
+    return corrente;
 }
 
 // Exibe a corrente no monitor serial
 void exibir_Corrente_PTBR() {
-  float valor_corrente = medidor_de_corrente_filtrado(50);  // 50 amostras para suavizar a leitura
+
+  float valor_corrente = medidor_de_corrente();
   Serial.print("Corrente: ");
   Serial.print(valor_corrente, 2);  // Exibe a corrente com 2 casas decimais
   Serial.println(" A");
+  delay(950);
 }
 
 // Exibe a tensão no monitor serial
