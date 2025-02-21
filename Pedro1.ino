@@ -1,67 +1,134 @@
-#include <SoftwareSerial.h>
-#include <DFRobotDFPlayerMini.h>
+/* 
+    Data: 21/02/2025 10h00
+    by Pedro
+*/
 
-// Configuração do DFPlayer Mini
-SoftwareSerial mySoftwareSerial(10, 11); // RX, TX
+#include <Arduino.h>
+#include <DFRobotDFPlayerMini.h>
+#include <SoftwareSerial.h>
+
+// Definição dos pinos para o DFPlayer
+#define PIN_RX 10
+#define PIN_TX 11
+
+// Definição das tracks de áudio
+#define TRACK_MENOS 130      // Movido para 130 - símbolos especiais
+#define TRACK_E 131         // Movido para 131 - palavras de conexão
+#define TRACK_VIRGULA 132   // Movido para 132 - símbolos especiais
+#define TRACK_ESTA_TENSAO 140    // Movido para 140 - frases de medição
+#define TRACK_ESTA_CORRENTE 141  // Movido para 141 - frases de medição
+#define TRACK_VOLT 150      // Movido para 150 - unidades
+#define TRACK_AMPERE 151    // Movido para 151 - unidades
+#define TRACK_OHMS 152      // Movido para 152 - unidades
+#define TRACK_MILI 160      // Movido para 160 - prefixos
+#define TRACK_KILO 161      // Movido para 161 - prefixos
+
+
+// Criação dos objetos para o DFPlayer
+SoftwareSerial mySoftwareSerial(PIN_RX, PIN_TX);
 DFRobotDFPlayerMini mp3;
 
-// Definição dos pinos
-int botao_Tensao = 3;
+int botao_Tensao = 3;          // Pino do botão conectado no pin digital
 int botao_Corrente = 4;
 int continuarT = 0;
 int continuarC = 0;
 int estadoBotaoTensao;
 int estadoBotaoCorrente;
 
-// Definição das faixas de áudio
-#define TRACK_ESTA_CORRENTE 50
-#define TRACK_ESTA_TENSAO 51
-#define TRACK_AMPERE 52
-#define TRACK_VOLT 53
-#define TRACK_PONTO 54
-#define TRACK_MENOS 55
-#define TRACK_E 98
-#define TRACK_VIRGULA 99
-
 void setup() {
   Serial.begin(9600);
-  mySoftwareSerial.begin(9600);
   
+  mySoftwareSerial.begin(9600);
   if (!mp3.begin(mySoftwareSerial)) {
-    Serial.println(F("Não foi possível inicializar o DFPlayer!"));
+    Serial.println(F("Falha ao iniciar DFPlayer"));
     while(true);
   }
   
-  mp3.volume(30); // Ajuste o volume (0-30)
-
+  // Adicionar verificação do cartão SD
+  if (!mp3.available()) {
+    Serial.println(F("Cartão SD não detectado!"));
+    while(true);
+  }
+  
+  mp3.setTimeOut(500);
+  mp3.volume(25);
+  
   pinMode(A0, INPUT);
   pinMode(A2, INPUT);
   pinMode(botao_Tensao, INPUT_PULLUP);
   pinMode(botao_Corrente, INPUT_PULLUP);
 
-  Serial.println("_______________");
-  Serial.println("JoKenPRo+");
+  Serial.println("=================");
+  Serial.println("Multimetro Sonoro");
+  Serial.println("=================");
 }
 
+// Função para medir a tensão no pino A0
 float medidor_de_tensao() {
-  int leituraAnalogica = analogRead(A0);
-  float tensao_real = (leituraAnalogica * 5.0 * 5.0) / 1024.0;
-  delay(450);
+  int leituraAnalogica = analogRead(A0);  // Leitura direta do pino A0
+  float tensao_real = (leituraAnalogica * 5.0 * 5.0) / 1024.0; // Cálculo da tensão real
+  delay(450);  // Tempo de espera para evitar leituras rápidas
   return tensao_real;
 }
 
-float medidor_de_corrente_filtrado(int numAmostras = 50) {
-  float soma = 0.0;
+float medidor_de_corrente(){
+    int leituraAnalogica = 0;
+    float tensao_sensor = 0.0;
+    float corrente = 0;
+    
+    leituraAnalogica = analogRead(A2);  // Leitura do pino A2 
+    tensao_sensor = (leituraAnalogica * 5 ) / 1024.0;  // Conversão para tensão     
+    //Serial.println(tensao_sensor);
+    corrente = abs((tensao_sensor - 2.50) / 0.185);  // Cálculo da corrente | o "abs" é para o valor ser sempre positivo
 
-  for (int i = 0; i < numAmostras; i++) {
-    int leituraAnalogica = analogRead(A2);
-    float tensao_sensor = (leituraAnalogica * 5.0) / 1024.0;
-    float corrente = (tensao_sensor - 2.5) / 0.185;
-    soma += corrente;
-    delay(10);
+    return corrente;
+}
+
+// Exibe a corrente no monitor serial
+void exibir_Corrente_PTBR() {
+  float valor_corrente = medidor_de_corrente();
+  Serial.print("Corrente: ");
+  Serial.print(valor_corrente, 2);
+  Serial.println(" A");
+  anunciarMedicao(valor_corrente, false);
+}
+
+// Exibe a tensão no monitor serial
+void exibir_Tensao_PTBR() {
+  float valor_tensao = medidor_de_tensao();
+  Serial.print("Tensão: ");
+  Serial.print(valor_tensao, 2);
+  Serial.println(" V");
+  anunciarMedicao(valor_tensao, true);
+}
+
+void loop() {
+  estadoBotaoTensao = digitalRead(botao_Tensao);
+  estadoBotaoCorrente = digitalRead(botao_Corrente);
+
+  if (estadoBotaoTensao == LOW) {
+    delay(50); // Debounce
+    continuarT = !continuarT; // Toggle
+    continuarC = 0;  // Desativa a medição de corrente
   }
 
-  return soma / numAmostras;
+  if (estadoBotaoCorrente == LOW) {
+    delay(50); // Debounce
+    continuarC = !continuarC; // Toggle
+    continuarT = 0;  // Desativa a medição de tensão
+  }
+  
+  if (continuarT == 1) {
+    exibir_Tensao_PTBR();      // Chama a função para exibir o valor da tensão
+  }
+
+  if (continuarC == 1) {
+    exibir_Corrente_PTBR();  // Chama a função para exibir corrente
+  }
+
+  if ((continuarT == 0) && (continuarC == 0)) {
+    delay(500);
+  }
 }
 
 String obterPrefixo(float &valor, bool isTensao) {
@@ -128,11 +195,10 @@ void anunciarMedicao(float valor, bool isTensao) {
   
   // Tocar prefixo se existir
   if(prefixo.length() > 0) {
-    // Tocar "e" antes do prefixo
-    
+    mp3.playMp3FolderTrack(TRACK_E);
     
     // Mapear nome do prefixo para número da faixa
-    if(prefixo == "Mili") mp3.playMp3FolderTrack(40);
+    if(prefixo == "Mili") mp3.playMp3FolderTrack(TRACK_MILI);
     else if(prefixo == "Micro") mp3.playMp3FolderTrack(41);
     // Adicionar outros prefixos conforme necessário
   }
@@ -144,40 +210,4 @@ void anunciarMedicao(float valor, bool isTensao) {
     mp3.playMp3FolderTrack(TRACK_AMPERE);
   }
   delay(1000);
-}
-
-
-void exibir_Corrente_PTBR() {
-  float valor = medidor_de_corrente_filtrado(50);
-  Serial.print("Corrente: ");
-  Serial.print(valor, 2);
-  Serial.println(" A");
-  anunciarMedicao(valor, false);
-}
-
-void exibir_Tensao_PTBR() {
-  float valor = medidor_de_tensao();
-  Serial.print("Tensão: ");
-  Serial.print(valor, 2);
-  Serial.println(" V");
-  anunciarMedicao(valor, true);
-}
-
-void loop() {
-  estadoBotaoTensao = digitalRead(botao_Tensao);
-  estadoBotaoCorrente = digitalRead(botao_Corrente);
-
-  if (estadoBotaoTensao == LOW) {
-    continuarC = 0;
-    continuarT = (continuarT < 2) ? continuarT + 1 : 0;
-  }
-
-  if (estadoBotaoCorrente == LOW) {
-    continuarT = 0;
-    continuarC = (continuarC < 2) ? continuarC + 1 : 0;
-  }
-  
-  if (continuarT == 1) exibir_Tensao_PTBR();
-  if (continuarC == 1) exibir_Corrente_PTBR();
-  if ((continuarT == 0) && (continuarC == 0)) delay(500);
 }
