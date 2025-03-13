@@ -1,5 +1,5 @@
 /*  
-    Data: 13/03/2025 08h50  
+    Data: 13/03/2025 10h22  
     by JK  
 */  
 
@@ -48,9 +48,9 @@ void exibir_Corrente_PTBR() {
   Serial.print(valor_corrente, 2);  
   Serial.println(" A");  
 
-  // Enviar para o Bluetooth  
+  // Enviar para o Bluetooth em formato TTS-friendly  
   bluetooth.print(valor_corrente, 2);  
-  bluetooth.println(" A");  
+  bluetooth.println(" amperes");  
 
   delay(950);  
 }  
@@ -61,9 +61,9 @@ void exibir_Tensao_PTBR() {
   Serial.print(valor_tensao, 2);  
   Serial.println(" V");  
 
-  // Enviar para o Bluetooth  
+  // Enviar para o Bluetooth em formato TTS-friendly  
   bluetooth.print(valor_tensao, 2);  
-  bluetooth.println(" V");  
+  bluetooth.println(" volts");  
 }  
 
 void loop() {  
