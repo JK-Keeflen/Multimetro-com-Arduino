@@ -1,5 +1,5 @@
 /* 
-    Data: 13/03/2025 15h29
+    Data: 25/01/2025 20h05
     by JK
 */
 
@@ -14,7 +14,7 @@ int continuarC = 0;
 int estadoBotaoTensao;
 int estadoBotaoCorrente;
 
-SoftwareSerial softSerial(4, 5); // RX, TX (ajuste conforme necessário)
+SoftwareSerial softSerial(4, 5); // RX, TX
 DFRobotDFPlayerMini myDFPlayer;
 
 void setup() {
@@ -29,51 +29,69 @@ void setup() {
   Serial.println("_______________");
   Serial.println("JoKenPRo+");
 
-  // Inicializando o DFPlayer Mini
   if (!myDFPlayer.begin(softSerial)) {
     Serial.println("Erro ao iniciar DFPlayer!");
-    while (true); // Para o código caso o módulo não seja detectado
+    while (true);
   }
   
-  myDFPlayer.volume(20);  // Ajusta o volume (0 a 30)
+  myDFPlayer.volume(20);
 }
 
-// Função para medir a tensão no pino A0
-float medidor_de_tensao() {
-  int leituraAnalogica = analogRead(A0);
-  float tensao_real = (leituraAnalogica * 5.0 * 5.0) / 1024.0;
-  delay(450);
-  return tensao_real;
-}
+// Converte número e toca os áudios
+void falarNumero(float valor, bool isTensao) {
+  int parteInteira = (int)valor;
+  int parteDecimal = (int)((valor - parteInteira) * 10);
 
-// Função para medir a corrente no pino A2
-float medidor_de_corrente() {
-  int leituraAnalogica = analogRead(A2);
-  float tensao_sensor = (leituraAnalogica * 5) / 1024.0;
-  float corrente = abs((tensao_sensor - 2.50) / 0.185);
-  return corrente;
-}
+  myDFPlayer.play(parteInteira); // Exemplo: 3 → "0003.mp3"
+  delay(1000);
 
-// Exibe e reproduz áudio da corrente
-void exibir_Corrente_PTBR() {
-  float valor_corrente = medidor_de_corrente();
-  Serial.print("Corrente: ");
-  Serial.print(valor_corrente, 2);
-  Serial.println(" A");
+  if (parteDecimal > 0) { 
+    myDFPlayer.play(99); // "vírgula.mp3" (99 é um exemplo, ajuste conforme necessário)
+    delay(500);
+    myDFPlayer.play(parteDecimal);
+    delay(1000);
+  }
 
-  myDFPlayer.play(2); // Reproduz "0002.mp3" (deve estar no cartão SD)
+  if (isTensao) {
+    myDFPlayer.play(98); // "volts.mp3" (98 é um exemplo)
+  } else {
+    myDFPlayer.play(97); // "amperes.mp3" (97 é um exemplo)
+  }
+
   delay(1000);
 }
 
-// Exibe e reproduz áudio da tensão
+// Medir e exibir tensão
 void exibir_Tensao_PTBR() {
   float valor_tensao = medidor_de_tensao();
   Serial.print("Tensão: ");
-  Serial.print(valor_tensao, 2);
+  Serial.print(valor_tensao, 1);
   Serial.println(" V");
 
-  myDFPlayer.play(1); // Reproduz "0001.mp3" (deve estar no cartão SD)
-  delay(1000);
+  falarNumero(valor_tensao, true);
+}
+
+// Medir e exibir corrente
+void exibir_Corrente_PTBR() {
+  float valor_corrente = medidor_de_corrente();
+  Serial.print("Corrente: ");
+  Serial.print(valor_corrente, 1);
+  Serial.println(" A");
+
+  falarNumero(valor_corrente, false);
+}
+
+// Medir tensão
+float medidor_de_tensao() {
+  int leituraAnalogica = analogRead(A0);
+  return (leituraAnalogica * 5.0 * 5.0) / 1024.0;
+}
+
+// Medir corrente
+float medidor_de_corrente() {
+  int leituraAnalogica = analogRead(A2);
+  float tensao_sensor = (leituraAnalogica * 5) / 1024.0;
+  return abs((tensao_sensor - 2.50) / 0.185);
 }
 
 void loop() {
