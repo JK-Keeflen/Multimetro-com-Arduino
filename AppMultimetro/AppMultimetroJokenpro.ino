@@ -5,17 +5,17 @@
 
 #include <SoftwareSerial.h>  
 
-SoftwareSerial bluetooth(10, 11);  // RX, TX (ajuste conforme necessário)  
+SoftwareSerial bluetooth(2, 3);  // RX, TX (ajuste conforme necessário)  
 
-int botao_Tensao = 3;  
-int botao_Corrente = 4;  
+int botao_Tensao = 6;  
+int botao_Corrente = 7;  
 int continuarT = 0;  
 int continuarC = 0;  
 int estadoBotaoTensao;  
 int estadoBotaoCorrente;  
 
 void setup() {  
-  Serial.begin(9600);  // Monitor serial  
+  Serial.begin(9600);  
   bluetooth.begin(9600); // Inicializa Bluetooth  
 
   pinMode(A0, INPUT);  
@@ -23,9 +23,9 @@ void setup() {
   pinMode(botao_Tensao, INPUT_PULLUP);  
   pinMode(botao_Corrente, INPUT_PULLUP);  
 
-  Serial.println("_______________");  
-  Serial.println("JoKenPRo+");  
-  bluetooth.println("Bluetooth pronto!");  
+  //Serial.println("_______________");  
+  //Serial.println("JoKenPRo+");  
+  //bluetooth.println("Bluetooth pronto!");  
 }  
 
 float medidor_de_tensao() {  
@@ -44,31 +44,35 @@ float medidor_de_corrente() {
 
 void exibir_Corrente_PTBR() {  
   float valor_corrente = medidor_de_corrente();  
-  Serial.print("Corrente: ");  
+  /*Serial.print("Corrente: ");  
   Serial.print(valor_corrente, 2);  
-  Serial.println(" A");  
+  Serial.println(" A");  */
 
   // Enviar para o Bluetooth em formato TTS-friendly  
-  bluetooth.print(valor_corrente, 2);  
+  bluetooth.print(valor_corrente);  
+  //delay(500);
   bluetooth.println(" amperes");  
 
-  delay(950);  
+  delay(1000);  
 }  
 
 void exibir_Tensao_PTBR() {  
-  float valor_tensao = medidor_de_tensao();  
-  Serial.print("Tensão: ");  
+  float valor_tensao = medidor_de_tensao();
+  
+  /*Serial.print("Tensão: ");  
   Serial.print(valor_tensao, 2);  
-  Serial.println(" V");  
+  Serial.println(" V"); */
 
   // Enviar para o Bluetooth em formato TTS-friendly  
-  bluetooth.print(valor_tensao, 2);  
+  bluetooth.print(valor_tensao);  
   bluetooth.println(" volts");  
+  delay(3500);
+
 }  
 
 void loop() {  
   estadoBotaoTensao = digitalRead(botao_Tensao);  
-  estadoBotaoCorrente = digitalRead(botao_Corrente);  
+  estadoBotaoCorrente = digitalRead(botao_Corrente); 
 
   if (estadoBotaoTensao == LOW) {  
     continuarC = 0;  
