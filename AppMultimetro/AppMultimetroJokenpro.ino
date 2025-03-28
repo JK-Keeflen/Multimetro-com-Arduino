@@ -5,7 +5,7 @@
 
 #include <SoftwareSerial.h>  
 
-SoftwareSerial bluetooth(2, 3);  // RX, TX (ajuste conforme necessário)  
+SoftwareSerial bluetooth(2, 3);  // RX, TX 
 
 int botao_Tensao = 6;  
 int botao_Corrente = 7;  
